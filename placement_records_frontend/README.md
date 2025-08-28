@@ -19,9 +19,11 @@ In the project directory:
 - `npm run build` — production build
 
 ## Backend Connectivity
-By default, the frontend calls the backend using relative paths (`/` and `/chat`). If you need to override:
-- Create `.env` and set:
-  - `REACT_APP_BACKEND_URL=/api` (or full origin like `https://your-backend-host:3001`)
+By default, the frontend will attempt to reach the backend at the same host on port `3001` (e.g., https://<your-host>:3001).
+You can override this behavior:
+- Create `.env` (see `.env.example`) and set:
+  - `REACT_APP_BACKEND_URL=/api` (if a reverse proxy maps `/api` -> backend), or
+  - `REACT_APP_BACKEND_URL=https://your-backend-host:3001` (absolute origin)
 Note: Do not commit secrets. The build environment will inject variables.
 
 ## Notes

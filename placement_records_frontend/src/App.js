@@ -31,18 +31,25 @@ function App() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, pending]);
 
-  // Compute backend base URL; default to same origin but allow override via env if needed.
+  // Compute backend base URL; default to the known backend origin if env is not provided.
   const backendBaseUrl = useMemo(() => {
-    // If future env is provided, use it; otherwise same origin on /api or port 3001 path.
-    // We’ll default to the provided running backend origin inferred from docs link:
-    // https://vscode-internal-25427-beta.beta01.cloud.kavia.ai:3001
+    /**
+     * Priority:
+     * 1) REACT_APP_BACKEND_URL if set (can be absolute like https://host:3001 or a relative base like /api)
+     * 2) Fallback to the known backend origin on port 3001 (same host as current page)
+     */
+    const envUrl = process.env.REACT_APP_BACKEND_URL;
+    if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+      return envUrl.trim();
+    }
+    // derive same-host backend running on 3001
     try {
-      const docsUrl = new URL(window.location.href);
-      // If running in preview, we don’t know the backend host; using relative /api by default.
-      // Adjust below if reverse proxy maps /api -> backend.
-      return process.env.REACT_APP_BACKEND_URL || '/';
+      const loc = new URL(window.location.href);
+      const fallback = `${loc.protocol}//${loc.hostname}:3001`;
+      return fallback;
     } catch {
-      return process.env.REACT_APP_BACKEND_URL || '/';
+      // ultimate fallback to /api if URL parsing fails
+      return '/api';
     }
   }, []);
 
@@ -51,7 +58,13 @@ function App() {
     const controller = new AbortController();
     const run = async () => {
       try {
-        const res = await fetch(new URL('/', window.location.origin + backendBaseUrl).toString(), {
+        const base = backendBaseUrl;
+        // Build URL: if base is absolute, new URL(path, base) works; if relative, new URL(base, origin) first
+        const baseAbs = (() => {
+          try { return new URL(base).toString(); } catch { return new URL(base, window.location.origin).toString(); }
+        })();
+        const healthUrl = new URL('/', baseAbs).toString();
+        const res = await fetch(healthUrl, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           signal: controller.signal
@@ -91,7 +104,12 @@ function App() {
     setInput('');
 
     try {
-      const res = await fetch(new URL('/chat', window.location.origin + backendBaseUrl).toString(), {
+      const base = backendBaseUrl;
+      const baseAbs = (() => {
+        try { return new URL(base).toString(); } catch { return new URL(base, window.location.origin).toString(); }
+      })();
+      const chatUrl = new URL('/chat', baseAbs).toString();
+      const res = await fetch(chatUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: trimmed })
